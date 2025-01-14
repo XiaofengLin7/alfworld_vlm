@@ -125,6 +125,7 @@ class OracleAgent(BaseAgent):
                                                            self.curr_recep, self.inventory)
 
     def print_frame(self, recep, loc):
+        ## TODO: name all the visible objects with num ids, and correctly specify the spatial relationship between objects and cur_recp
         inst_color_count, inst_color_to_object_id = self.get_instance_seg()
         recep_object_id = recep['object_id']
 
@@ -136,22 +137,26 @@ class OracleAgent(BaseAgent):
                 object_type = object_id.split("|")[0]
                 object_metadata = self.get_obj_id_from_metadata(object_id)
                 is_obj_in_recep = (object_metadata and object_metadata['parentReceptacles'] and len(object_metadata['parentReceptacles']) > 0 and recep_object_id in object_metadata['parentReceptacles'])
-                if object_type in self.OBJECTS and object_metadata and (not self.use_gt_relations or is_obj_in_recep):
+                if object_type in self.OBJECTS and object_metadata and (not self.use_gt_relations or is_obj_in_recep) and object_metadata['visible']:
                     if object_id not in self.objects:
+                        # Create base object dictionary
+                        obj_name = object_type.lower() if "Sliced" not in object_id else "sliced-%s" % object_type.lower()
                         self.objects[object_id] = {
                             'object_id': object_id,
                             'object_type': object_type,
-                            'parent': recep['object_id'],
                             'loc': loc,
                             'num_pixels': num_pixels,
-                            'num_id': "%s %d" % (object_type.lower() if "Sliced" not in object_id else "sliced-%s" % object_type.lower(),
-                                                 self.get_next_num_id(object_type, self.objects))
+                            'num_id': "%s %d" % (obj_name, self.get_next_num_id(object_type, self.objects))
                         }
+
                     elif object_id in self.objects and num_pixels > self.objects[object_id]['num_pixels']:
                         self.objects[object_id]['loc'] = loc
                         self.objects[object_id]['num_pixels'] = num_pixels
+                    # Add parent if object is in receptacle
+                    if is_obj_in_recep:
+                        self.objects[object_id]['parent'] = recep['object_id']
 
-                    if self.objects[object_id]['num_id'] not in self.inventory:
+                    if self.objects[object_id]['num_id'] not in self.inventory and is_obj_in_recep:
                         visible_objects.append(self.objects[object_id]['num_id'])
 
         visible_objects_with_articles = ["a %s," % vo for vo in visible_objects]
@@ -187,7 +192,7 @@ class OracleAgent(BaseAgent):
         receptacle_contents = {receptacle_name: [] for _, receptacle_name in visible_recep}
         for recep_id, recep_name in visible_recep:
             recep_metadata = self.get_obj_id_from_metadata(recep_id)
-            if recep_metadata and "receptacleObjectIds" in recep_metadata:
+            if recep_metadata and recep_metadata["receptacleObjectIds"] is not None:
                 for object_id in recep_metadata["receptacleObjectIds"]:
                     if object_id in self.objects:
                         obj_name = self.objects[object_id]["num_id"]
@@ -208,16 +213,16 @@ class OracleAgent(BaseAgent):
                     if recep_metadata["isOpen"]:
                         feedback += "The %s is open. " % recep_name
                         if len(receptacle_contents[recep_name]) > 0:
-                            feedback += "In the %s, you see %s. " % (recep_name, self.fix_and_comma_in_the_end(' '.join(receptacle_contents[recep_name])))
+                            feedback += "In the %s, you see %s " % (recep_name, self.fix_and_comma_in_the_end(' '.join(receptacle_contents[recep_name])))
                         else:
                             feedback += "In the %s, you see nothing. " % recep_name
                     else:
                         feedback += "The %s is closed. " % recep_name
                 else:
                     if len(receptacle_contents[recep_name]) > 0:
-                        feedback += "On the %s, you see %s" % (recep_name, self.fix_and_comma_in_the_end(' '.join(receptacle_contents[recep_name])))
+                        feedback += "On the %s, you see %s " % (recep_name, self.fix_and_comma_in_the_end(' '.join(receptacle_contents[recep_name])))
                     else:
-                        feedback += "On the %s, you see nothing." % recep_name
+                        feedback += "On the %s, you see nothing. " % recep_name
         
         return feedback
                     
