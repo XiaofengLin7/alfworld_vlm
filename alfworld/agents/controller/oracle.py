@@ -267,6 +267,15 @@ class OracleAgent(BaseAgent):
         
         return action_feedback + feedback
                     
+    def print_inventory(self):
+        feedback = ""
+        if len(self.inventory) > 0:
+            object = self.get_object(self.inventory[0], self.objects)
+            feedback += self.print_object(object)
+            feedback = feedback.replace("This is a normal", "You are holding")
+        else:
+            feedback += "You are not holding anything. "
+        return feedback
     
 
     def step(self, action_str):

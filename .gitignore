@@ -129,3 +129,5 @@ dmypy.json
 
 # TW-Alfred
 data/json_2.1.1*
+
+.DS_Store
