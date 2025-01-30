@@ -199,12 +199,13 @@ class OracleAgent(BaseAgent):
                         if (object_id, obj_name) in visible_obj:
                             receptacle_contents[recep_name].append("a %s," % obj_name)
         
-        # check inventory objects
         feedback = ""
-        if len(self.inventory) > 0:
-            feedback += "You are holding a %s. " % self.inventory[0]
-        else:
-            feedback += "You are not holding anything. "
+        # check inventory objects
+        # feedback = ""
+        # if len(self.inventory) > 0:
+        #     feedback += "You are holding a %s. " % self.inventory[0]
+        # else:
+        #     feedback += "You are not holding anything. "
 
         # constructing action feedback
         # action_feedback is "Nothing happens." if the action is failed or there is no visibly changes in the environment.
