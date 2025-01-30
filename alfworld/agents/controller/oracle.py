@@ -169,7 +169,7 @@ class OracleAgent(BaseAgent):
         return visible_objects, feedback
     
 
-    def print_frame_desc_oracle(self):
+    def print_frame_desc_oracle(self, action_str):
         # iterate through all receptacles.
         visible_recep = []
         visible_obj = []
@@ -205,28 +205,69 @@ class OracleAgent(BaseAgent):
             feedback += "You are holding a %s. " % self.inventory[0]
         else:
             feedback += "You are not holding anything. "
-        # for every visible receptacle, check if it's open or closed
-        for recep_id, recep_name in visible_recep:
-            recep_metadata = self.get_obj_id_from_metadata(recep_id)
-            if recep_metadata and "openable" in recep_metadata:
-                if recep_metadata["openable"]:
-                    if recep_metadata["isOpen"]:
-                        feedback += "The %s is open. " % recep_name
-                        if len(receptacle_contents[recep_name]) > 0:
-                            feedback += "In the %s, you see %s " % (recep_name, self.fix_and_comma_in_the_end(' '.join(receptacle_contents[recep_name])))
-                        else:
-                            feedback += "In the %s, you see nothing. " % recep_name
-                    else:
-                        feedback += "The %s is closed. " % recep_name
-                else:
-                    if len(receptacle_contents[recep_name]) > 0:
-                        feedback += "On the %s, you see %s " % (recep_name, self.fix_and_comma_in_the_end(' '.join(receptacle_contents[recep_name])))
-                    else:
-                        feedback += "On the %s, you see nothing. " % recep_name
-        
-        return feedback
-                    
 
+        # constructing action feedback
+        # action_feedback is "Nothing happens." if the action is failed or there is no visibly changes in the environment.
+        # action_feedback is the feedback of the action if there is visibly changes in the environment.
+        action_feedback = ""
+        cmd = self.parse_command(action_str)
+        if cmd['action'] == self.Action.GOTO:
+            target = cmd['tar']
+            recep = self.get_object(target, self.receptacles)
+            if (recep['object_id'], recep["num_id"]) in visible_recep:
+                action_feedback = "You arrive at %s. " % recep["num_id"]
+                action_feedback += self.generate_recep_feedback(recep['object_id'], recep["num_id"], receptacle_contents)
+                # delete the recep from visible_recep
+                visible_recep.remove((recep['object_id'], recep["num_id"]))
+            else:
+                action_feedback = "Nothing happens. "
+        elif cmd['action'] == self.Action.OPEN:
+            target = cmd['tar']
+            recep = self.get_object(target, self.receptacles)
+            if (recep['object_id'], recep["num_id"]) in visible_recep and "You open" in self.feedback:
+                action_feedback = "You open the %s. " % recep["num_id"]
+                action_feedback += self.generate_recep_feedback(recep['object_id'], recep["num_id"], receptacle_contents)
+                # delete the recep from visible_recep
+                visible_recep.remove((recep['object_id'], recep["num_id"]))
+            else:
+                action_feedback = "Nothing happens. "
+        elif cmd['action'] == self.Action.CLOSE:
+            target = cmd['tar']
+            recep = self.get_object(target, self.receptacles)
+            if (recep['object_id'], recep["num_id"]) in visible_recep and "You close" in self.feedback:
+                action_feedback = "You close the %s. " % recep["num_id"]
+                # delete the recep from visible_recep
+                visible_recep.remove((recep['object_id'], recep["num_id"]))
+            else:
+                action_feedback = "Nothing happens. "
+        
+        elif cmd['action'] == self.Action.PUT:
+            action_feedback = self.feedback
+        elif cmd['action'] == self.Action.PICK:
+            action_feedback = self.feedback
+        elif cmd['action'] == self.Action.TOGGLE:
+            action_feedback = self.feedback
+        # for heat, clean, there are no visibly changes in the environment, but vlm is supposed to know based on inventory information
+        elif cmd['action'] == self.Action.HEAT:
+            action_feedback = self.feedback
+        elif cmd['action'] == self.Action.CLEAN:
+            action_feedback = self.feedback
+        elif cmd['action'] == self.Action.COOL:
+            action_feedback = self.feedback
+        # for examine, look, inventory, there are no visibly changes in the environment
+        elif cmd['action'] == self.Action.EXAMINE or cmd['action'] == self.Action.LOOK or cmd['action'] == self.Action.INVENTORY:
+            action_feedback = "Nothing happens. "
+        else:
+            action_feedback = "Nothing happens. " 
+
+
+        # for recep_id, recep_name in visible_recep:
+        for recep_id, recep_name in visible_recep:
+            feedback += self.generate_recep_feedback(recep_id, recep_name, receptacle_contents)
+        
+        return action_feedback + feedback
+                    
+    
 
     def step(self, action_str):
         event = None
@@ -404,4 +445,39 @@ class OracleAgent(BaseAgent):
         if self.debug:
             print(self.feedback)
         return self.feedback
+
+    def generate_recep_feedback(self, recep_id, recep_name, receptacle_contents):
+        """
+        Generates feedback based on the receptacle's state and its contents.
+
+        Args:
+            recep_id (str): The unique identifier of the receptacle.
+            recep_name (str): The name of the receptacle.
+            receptacle_contents (dict): A dictionary mapping receptacle names to lists of visible objects.
+
+        Returns:
+            str: A feedback string describing the state of the receptacle and its contents.
+        """
+        feedback = ""
+        recep_metadata = self.get_obj_id_from_metadata(recep_id)
+
+        if recep_metadata and "openable" in recep_metadata:
+            if recep_metadata["openable"]:
+                if recep_metadata.get("isOpen", False):
+                    feedback += f"The {recep_name} is open. "
+                    if recep_name in receptacle_contents and len(receptacle_contents[recep_name]) > 0:
+                        objects_description = self.fix_and_comma_in_the_end(' '.join(receptacle_contents[recep_name]))
+                        feedback += f"In the {recep_name}, you see {objects_description} "
+                    else:
+                        feedback += f"In the {recep_name}, you see nothing. "
+                else:
+                    feedback += f"The {recep_name} is closed. "
+            else:
+                if recep_name in receptacle_contents and len(receptacle_contents[recep_name]) > 0:
+                    objects_description = self.fix_and_comma_in_the_end(' '.join(receptacle_contents[recep_name]))
+                    feedback += f"On the {recep_name}, you see {objects_description} "
+                else:
+                    feedback += f"On the {recep_name}, you see nothing. "
+
+        return feedback
 
