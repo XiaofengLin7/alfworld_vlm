@@ -218,7 +218,7 @@ class OracleAgent(BaseAgent):
         if cmd['action'] == self.Action.GOTO:
             target = cmd['tar']
             recep = self.get_object(target, self.receptacles)
-            if (recep['object_id'], recep["num_id"]) in visible_recep:
+            if recep and (recep['object_id'], recep["num_id"]) in visible_recep:
                 action_feedback = "You arrive at %s. " % recep["num_id"]
                 action_feedback += self.generate_recep_feedback(recep['object_id'], recep["num_id"], receptacle_contents)
                 # delete the recep from visible_recep
