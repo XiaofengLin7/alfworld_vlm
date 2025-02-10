@@ -125,7 +125,9 @@ class OracleAgent(BaseAgent):
                                                            self.curr_recep, self.inventory)
 
     def print_frame(self, recep, loc):
-        ## TODO: name all the visible objects with num ids, and correctly specify the spatial relationship between objects and cur_recp
+        # Modified by Xiaofeng Lin
+        # added one more condition to check if the object is visible
+
         inst_color_count, inst_color_to_object_id = self.get_instance_seg()
         recep_object_id = recep['object_id']
 
@@ -170,6 +172,7 @@ class OracleAgent(BaseAgent):
     
 
     def print_frame_desc_oracle(self, action_str):
+        # Author: Xiaofeng Lin
         # iterate through all receptacles.
         visible_recep = []
         visible_obj = []
@@ -269,6 +272,7 @@ class OracleAgent(BaseAgent):
         return action_feedback + feedback
                     
     def print_inventory(self):
+        # Author: Xiaofeng Lin
         feedback = ""
         if len(self.inventory) > 0:
             object = self.get_object(self.inventory[0], self.objects)
@@ -457,6 +461,7 @@ class OracleAgent(BaseAgent):
         return self.feedback
 
     def generate_recep_feedback(self, recep_id, recep_name, receptacle_contents):
+        # Author: Xiaofeng Lin
         """
         Generates feedback based on the receptacle's state and its contents.
 
